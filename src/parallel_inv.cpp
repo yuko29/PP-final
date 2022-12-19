@@ -30,11 +30,15 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
     std::size_t i{0}, j{0}, k{0};
 
     // ******************** Step 1: row permutation (swap diagonal zeros) ********************
-    std::vector<std::size_t> permuteLU; // Permute vector
+    /*std::vector<std::size_t> permuteLU(nSize); // Permute vector
     for (i = 0; i < nSize; ++i)
     {
         permuteLU.push_back(i); // Push back row index
-    }
+    }*/
+    std::vector<std::size_t> permuteLU(nSize); // Permute vector
+    #pragma omp parallel for schedule(static, 1)
+    for (i = 0; i < nSize; ++i)
+        permuteLU[i] = i; // Push back row index
 
     if (usePermute) // Sort rows by pivot element
     {

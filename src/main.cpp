@@ -31,17 +31,17 @@ void usage(const char *progname)
     printf("Usage: %s [options]\n", progname);
     printf("Program Options:\n");
     printf("The <UINT> below should > 0.\n");
-    printf("  -n <UINT>     Set matrix dimension (500 * 500 is default).\n");
-    printf("  -s <UINT>     Set the seed of matrix generation.\n");
+    printf("  -n <UINT>    Set matrix dimension (500 * 500 is default).\n");
+    printf("  -s <UINT>    Set the seed of matrix generation.\n");
     printf("  -b <INT>     Set the min(begin) value of matrix's elements (-25 is default).\n");
     printf("  -e <INT>     Set the max(end) value of matrix's elements (25 is default).\n");
-    printf("  -t <UINT>     Set the times of running PP to get average time (1 time is default).\n");
+    printf("  -t <UINT>    Set the times of running PP to get average time (1 time is default).\n");
     printf("  -v           Verify PP's answer with serial's.\n");
     printf("  -h           This message.\n");
     exit(0);
 }
 
-void verifyResult(const i_real_matrix &matPP, const i_real_matrix &matAns, int n)
+bool verifyResult(const i_real_matrix &matPP, const i_real_matrix &matAns, int n)
 {
     for (int i = 0; i < n; i++)
     {
@@ -50,10 +50,11 @@ void verifyResult(const i_real_matrix &matPP, const i_real_matrix &matAns, int n
             if (abs(matPP[i][j] - matAns[i][j]) > TOLERANCE)
             {
                 printf("Mismatch : [%d][%d], Expected : %lf, Actual : %lf\n", i, j, matPP[i][j], matAns[i][j]);
-                return;
+                return false;
             }
         }
     }
+    return true;
 }
 //
 
@@ -98,6 +99,12 @@ int main(int argc, char * argv[]) {
             default:
                 usage(argv[0]);
         }
+    }
+
+    if (beg_val >= end_val)
+    {
+        cout << "min value should < max value.\n";
+        return 0;
     }
     //
 
@@ -163,9 +170,9 @@ int main(int argc, char * argv[]) {
         cout << "number" << i << ": " << durations[i].count() << " (ms)\n";        
     }
 
+    // comput average, but the biggst and smallest 10% time will not be computed
     sort(durations.begin(), durations.end());
     milliseconds sum_durations = duration_cast<milliseconds>(start - start); // set to zero
-    // comput average, but the biggst and smallest 10% time will not be computed
     int starti = (float)times * 0.1, endi = (float)times * 0.9 + 1;
     for (int i = starti; i < endi; ++i)
         sum_durations += durations[i];
@@ -173,7 +180,8 @@ int main(int argc, char * argv[]) {
     cout << "average duration openmp: " << sum_durations.count() << " (ms)\n";      
 
     // add by myself
-    if (verify) verifyResult(mat_inv_PP, mat_inv, mat_inv.size());
+    if (verify && verifyResult(mat_inv_PP, mat_inv, mat_inv.size())) 
+        cout << "Correct answer.\n";
     //
 
     return 0;

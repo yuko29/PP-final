@@ -1,1 +1,4 @@
 .vscode/
+objs/
+perf.*
+main
