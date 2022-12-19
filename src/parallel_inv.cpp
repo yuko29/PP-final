@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <omp.h>
 
 #include "parallel_inv.hpp"
 
@@ -69,6 +70,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         matLU.clear();
         return matLU;
     }
+    #pragma omp parallel for schedule(static, 1)
     for (i = 1; i < nSize; ++i)
     {
         matLU[i][0] /= matLU[0][0]; // Initialize first column of L matrix

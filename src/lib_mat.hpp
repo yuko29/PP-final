@@ -12,7 +12,7 @@
 #include "lib_testing_ref.hpp"
 #include "user_types.hpp"
 
-void init_mat(int n, double ** mat);
+void init_mat(int n, double ** mat, unsigned int seed, int min, int max);
 void set_mat_to_vec2D(double ** mat, int n, i_real_matrix & mat_inv);
 void set_mat_to_matrix(double ** mat, int n, matrix & m);
 // void set_mat_to_matxd(double ** mat, int n, MatrixXd & mat_out);

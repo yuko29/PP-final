@@ -25,9 +25,9 @@ double rand_di(int min, int max) {
     return rand() % (max - min) + min;
 }
 
-void init_mat(int n, double ** mat) {
-
-    srand((unsigned) time(NULL));
+void init_mat(int n, double ** mat, unsigned int seed, int min, int max) {
+    if (seed == 0) seed = time(NULL);
+    srand(seed);
 
     for(int i = 0; i < n; ++i) {
         for(int j = 0; j < n; ++j) {

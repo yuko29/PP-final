@@ -16,132 +16,165 @@
 #include "user_types.hpp"
 #include "parallel_inv.hpp"
 
+// add by myself
+#include <unistd.h>
+//
+
 using namespace std;
 using namespace std::chrono;
+
+// add by myself
+#define TOLERANCE 1e-5
+
+void usage(const char *progname)
+{
+    printf("Usage: %s [options]\n", progname);
+    printf("Program Options:\n");
+    printf("The <UINT> below should > 0.\n");
+    printf("  -n <UINT>     Set matrix dimension (500 * 500 is default).\n");
+    printf("  -s <UINT>     Set the seed of matrix generation.\n");
+    printf("  -b <INT>     Set the min(begin) value of matrix's elements (-25 is default).\n");
+    printf("  -e <INT>     Set the max(end) value of matrix's elements (25 is default).\n");
+    printf("  -t <UINT>     Set the times of running PP to get average time (1 time is default).\n");
+    printf("  -v           Verify PP's answer with serial's.\n");
+    printf("  -h           This message.\n");
+    exit(0);
+}
+
+void verifyResult(const i_real_matrix &matPP, const i_real_matrix &matAns, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (abs(matPP[i][j] - matAns[i][j]) > TOLERANCE)
+            {
+                printf("Mismatch : [%d][%d], Expected : %lf, Actual : %lf\n", i, j, matPP[i][j], matAns[i][j]);
+                return;
+            }
+        }
+    }
+}
+//
 
 int main(int argc, char * argv[]) {
 
     // Size input matrix
     int n = 500;
 
+    // add by myself
+    int times = 1, beg_val = -25, end_val = 25;
+    bool verify = false;
+    unsigned int seed = 0;
+
+    int opt;
+    while ((opt = getopt(argc, argv, "n:s:b:e:t:vh")) != -1)
+    {
+        switch (opt)
+        {
+            case 'n':
+                n = atoi(optarg);
+                if (n <= 0) usage(argv[0]);
+                break;
+            case 's':
+                seed = atoi(optarg);
+                if (seed <= 0) usage(argv[0]);
+                break;
+            case 'b':
+                beg_val = atoi(optarg);
+                break;
+            case 'e':
+                end_val = atoi(optarg);
+                break;
+            case 't':
+                times = atoi(optarg);
+                if (times <= 0) usage(argv[0]);
+                break;
+            case 'v':
+                verify = true;
+                break;
+            case 'h':
+                usage(argv[0]);
+            default:
+                usage(argv[0]);
+        }
+    }
+    //
+
+
     // Allocate space for matrices
-    double ** mat = mat2D(n);
-    double ** mat_inv = mat2D(n);
-    double ** mat_prod = mat2D(n);
-    double ** mat_store = mat2D(n);
-    // matrix mat1(n, n);
-    i_real_matrix mat2;
-    // MatrixXd mat3(n,n);
+    double ** mat_ori = mat2D(n);
+    i_real_matrix mat;
 
     // Populate matrix mat with some data
-    init_mat(n, mat);
+    init_mat(n, mat_ori, seed, beg_val, end_val);
 
-    // Populate reference matrix mat1 with mat data
-    // set_mat_to_matrix(mat, n, mat1);
-
-    // Populate reference matrix mat2 with mat data
-    set_mat_to_vec2D(mat, n, mat2);
-
-    // Populate reference matrix mat3 with mat data
-    // set_mat_to_matxd(mat, n, mat3);
-
-    // Store initial matrix mat
-    set_mat(mat, n, mat_store);
-
-    // Time custom Gauss-Jordan method
-    auto start = high_resolution_clock::now();
-
-    // Compute inverse using custom Gauss-Jordan method
-    // gauss_jordan(mat, n, mat_inv);
-
-    // Get stop time custom Gauss-Jordan method
-    auto stop = high_resolution_clock::now();
-
-    // Get duration custom Gauss-Jordan method
-    auto duration = duration_cast<microseconds>(stop - start);
-
-    // Print duration custom Gauss-Jordan method
-    // cout << "duration custom Guass-Jordan: " << duration.count() << " (s)" << endl;
-
-    // Time reference method 1, Rosetta Code
-    // start = high_resolution_clock::now();
-
-    // Compute inverse using reference method 1, Rosetta Code
-    // auto mat1_inv = inverse(mat1);
-
-    // Get stop time reference method 1, Rosetta Code
-    // stop = high_resolution_clock::now();
-
-    // Get duration reference method 1, Rosetta Code
-    // duration = duration_cast<milliseconds>(stop - start);
-
-    // Print duration reference method 1, Rosetta Code
-    // cout << "duration reference method 1: " << duration.count() << " (s)" << endl;
-
-    // Time reference method 2, MIT
-    start = high_resolution_clock::now();
-
-    // Compute inverse using reference method 2, MIT
-    i_real_matrix mat2_inv = inv_ref(mat2, true);
-
-    // Get stop time reference method 2, MIT
-    stop = high_resolution_clock::now();
-
-    // Get duration reference method 2, MIT
-    duration = duration_cast<milliseconds>(stop - start);
-
-    // Print duration of reference method 2, MIT
-    cout << "duration reference method 2: " << duration.count() << " (ms)" << endl;
-
-    // // Time reference method 3, Eigen
-    // start = high_resolution_clock::now();
-
-    // // Compute inverse using reference method 3, Eigen
-    // MatrixXd mat3_inv = mat3.inverse();
-
-    // // Get stop time reference method 3, Eigen
-    // stop = high_resolution_clock::now();
-
-    // // Get duration reference method 3, Eigen
-    // duration = duration_cast<seconds>(stop - start);
-
-    // // Print duration of reference method 3, Eigen
-    // cout << "duration reference method 3: " << duration.count() << " (s)" << endl;
-
-    // Verify computation custom Gauss-Jordan method
-    // mat_mult_sq(mat_store, mat_inv, n, mat_prod);
-
-    // Print results
-    // print_mat(mat_prod, n);
-
-    // print_mat(mat_inv, n);
-
-    // print(cout, mat1_inv);
-
-    // showMatrix(mat2_inv, "reference solution MIT", false);
-
-    // print_matxd(mat3_inv, n);
-
-    // Time reference method 2, MIT
-    start = high_resolution_clock::now();
-
-    // Compute inverse using reference method 2, MIT
-    i_real_matrix mat4_inv = inv_ref_PP(mat2, true);
-
-    // Get stop time reference method 2, MIT
-    stop = high_resolution_clock::now();
-
-    // Get duration reference method 2, MIT
-    duration = duration_cast<milliseconds>(stop - start);
-
-    // Print duration of reference method 2, MIT
-    cout << "duration openmp: " << duration.count() << " (ms)" << endl;
+    // Populate reference matrix mat with mat data
+    set_mat_to_vec2D(mat_ori, n, mat);
 
     // Free allocated space
-    free_mat2D(mat, n);
-    free_mat2D(mat_inv, n);
-    free_mat2D(mat_prod, n);
-    free_mat2D(mat_store, n);
+    free_mat2D(mat_ori, n);
+
+    // set time data type
+    std::chrono::time_point<std::chrono::high_resolution_clock>  start, stop;
+    milliseconds duration;
+
+    // add by myself
+    i_real_matrix mat_inv;
+    if (verify)
+    {
+    //
+        // Time serial
+        start = high_resolution_clock::now();
+
+        // Compute inverse using serial
+        mat_inv = inv_ref(mat, true);
+
+        // Get stop time serial
+        stop = high_resolution_clock::now();
+
+        // Get duration serial
+        duration = duration_cast<milliseconds>(stop - start);
+
+        // Print duration of serial
+        cout << "duration serial: " << duration.count() << " (ms)\n";
+    // add by myself
+    }
+    //
+    cout << "duration openmp: \n";
+
+    i_real_matrix mat_inv_PP;
+    vector<milliseconds> durations(times);
+    for (int i = 0; i < times; ++i)
+    {
+        // Time PP
+        start = high_resolution_clock::now();
+
+        // Compute inverse using PP
+        mat_inv_PP = inv_ref_PP(mat, true);
+
+        // Get stop time PP
+        stop = high_resolution_clock::now();
+
+        // Get duration PP
+        durations[i] = duration_cast<milliseconds>(stop - start);
+
+        // Print duration of PP
+        cout << "number" << i << ": " << durations[i].count() << " (ms)\n";        
+    }
+
+    sort(durations.begin(), durations.end());
+    milliseconds sum_durations = duration_cast<milliseconds>(start - start); // set to zero
+    // comput average, but the biggst and smallest 10% time will not be computed
+    int starti = (float)times * 0.1, endi = (float)times * 0.9 + 1;
+    for (int i = starti; i < endi; ++i)
+        sum_durations += durations[i];
+    sum_durations /= endi - starti;
+    cout << "average duration openmp: " << sum_durations.count() << " (ms)\n";      
+
+    // add by myself
+    if (verify) verifyResult(mat_inv_PP, mat_inv, mat_inv.size());
+    //
 
     return 0;
 }

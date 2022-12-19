@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-Iobjs/ -I.src/ -O3 -std=c++11
+CXXFLAGS=-Iobjs/ -I.src/ -O3 -std=c++11 -fopenmp
 OBJDIR=objs
 SRC=src
 EXE=main
@@ -12,7 +12,7 @@ dirs:
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/parallel_inv.o $(OBJDIR)/lib_mat.o $(OBJDIR)/lib_mem.o $(OBJDIR)/lib_sort.o $(OBJDIR)/lib_testing_ref.o $(OBJDIR)/lib_testing.o
 
 $(EXE): dirs $(OBJS)
-	$(CXX) -o $@ $(OBJS) 
+	$(CXX) -o $@ $(OBJS) -fopenmp
 
 $(OBJDIR)/%.o: $(SRC)/%.cpp
 		$(CXX) $< $(CXXFLAGS) -c -o $@
