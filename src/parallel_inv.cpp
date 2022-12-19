@@ -70,13 +70,14 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         matLU.clear();
         return matLU;
     }
-    #pragma omp parallel for schedule(static, 1)
+    #pragma omp parallel for
     for (i = 1; i < nSize; ++i)
     {
         matLU[i][0] /= matLU[0][0]; // Initialize first column of L matrix
     }
     for (i = 1; i < nSize; ++i)
     {
+    	#pragma omp parallel for
         for (j = i; j < nSize; ++j)
         {
             for (k = 0; k < i; ++k)
@@ -90,6 +91,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
             matLU.clear();
             return matLU;
         }
+        #pragma omp parallel for
         for (k = i + 1; k < nSize; ++k)
         {
             for (j = 0; j < i; ++j)
@@ -104,6 +106,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
     i_real_matrix matLU_inv = initRealMatrixPP(nSize, nSize);
 
     // matL inverse & matU inverse
+    #pragma omp parallel for
     for (i = 0; i < nSize; ++i)
     {
         // L matrix inverse, omit diagonal ones
