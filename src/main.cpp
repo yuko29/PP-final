@@ -157,6 +157,7 @@ int main(int argc, char * argv[]) {
     printf("----------------------------------------------------------\n");
     printf("Max system threads = %d\n", omp_get_max_threads());
     threads = std::min(threads, omp_get_max_threads());
+    omp_set_num_threads(threads);
     printf("Running with %d threads\n", threads);
     printf("----------------------------------------------------------\n");
     cout << "duration openmp: \n";
