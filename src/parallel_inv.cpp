@@ -83,9 +83,10 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
     for (i = 1; i < nSize; ++i)
         matLU[i][0] /= matLU[0][0]; // Initialize first column of L matrix
         
-    #pragma omp parallel for schedule(static, 1)
+    // if use #pragma omp parallel for schedule(static, 1) may error when threads = 2, don't know why
     for (i = 1; i < nSize; ++i)
     {
+        #pragma omp parallel for schedule(static, 1)
         for (j = i; j < nSize; ++j)
         {
             #pragma omp reduction(-:matLU[:i][:j])
@@ -100,6 +101,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
             matLU.clear();
             return matLU;
         }*/
+        #pragma omp parallel for schedule(static, 1)
         for (k = i + 1; k < nSize; ++k)
         {
             #pragma omp reduction(-:matLU[:k][:i])
