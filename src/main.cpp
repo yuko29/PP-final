@@ -18,6 +18,7 @@
 
 // add by myself
 #include <unistd.h>
+#include <omp.h>
 //
 
 using namespace std;
@@ -35,7 +36,8 @@ void usage(const char *progname)
     printf("  -s <UINT>    Set the seed of matrix generation.\n");
     printf("  -b <INT>     Set the min(begin) value of matrix's elements (-25 is default).\n");
     printf("  -e <INT>     Set the max(end) value of matrix's elements (25 is default).\n");
-    printf("  -t <UINT>    Set the times of running PP to get average time (1 time is default).\n");
+    printf("  -t <UINT>    Set the number of threads to run. (if availabe, 4 is default.)\n");
+    printf("  -r <UINT>    Set the repeat times of running PP to get average time (1 time is default).\n");
     printf("  -v           Verify PP's answer with serial's.\n");
     printf("  -h           This message.\n");
     exit(0);
@@ -64,12 +66,12 @@ int main(int argc, char * argv[]) {
     int n = 500;
 
     // add by myself
-    int times = 1, beg_val = -25, end_val = 25;
+    int repeat = 1, beg_val = -25, end_val = 25, threads = 4;
     bool verify = false;
     unsigned int seed = 0;
 
     int opt;
-    while ((opt = getopt(argc, argv, "n:s:b:e:t:vh")) != -1)
+    while ((opt = getopt(argc, argv, "n:s:b:e:t:r:vh")) != -1)
     {
         switch (opt)
         {
@@ -88,8 +90,12 @@ int main(int argc, char * argv[]) {
                 end_val = atoi(optarg);
                 break;
             case 't':
-                times = atoi(optarg);
-                if (times <= 0) usage(argv[0]);
+                threads = atoi(optarg);
+                if (threads <= 0) usage(argv[0]);
+                break;
+            case 'r':
+                repeat = atoi(optarg);
+                if (repeat <= 0) usage(argv[0]);
                 break;
             case 'v':
                 verify = true;
@@ -148,11 +154,16 @@ int main(int argc, char * argv[]) {
     // add by myself
     }
     //
+    printf("----------------------------------------------------------\n");
+    printf("Max system threads = %d\n", omp_get_max_threads());
+    threads = std::min(threads, omp_get_max_threads());
+    printf("Running with %d threads\n", threads);
+    printf("----------------------------------------------------------\n");
     cout << "duration openmp: \n";
 
     i_real_matrix mat_inv_PP;
-    vector<milliseconds> durations(times);
-    for (int i = 0; i < times; ++i)
+    vector<milliseconds> durations(repeat);
+    for (int i = 0; i < repeat; ++i)
     {
         // Time PP
         start = high_resolution_clock::now();
@@ -173,15 +184,19 @@ int main(int argc, char * argv[]) {
     // comput average, but the biggst and smallest 10% time will not be computed
     sort(durations.begin(), durations.end());
     milliseconds sum_durations = duration_cast<milliseconds>(start - start); // set to zero
-    int starti = (float)times * 0.1, endi = (float)times * 0.9 + 1;
+    int starti = (float)repeat * 0.1, endi = (float)repeat * 0.9 + 1;
     for (int i = starti; i < endi; ++i)
         sum_durations += durations[i];
     sum_durations /= endi - starti;
-    cout << "average duration openmp: " << sum_durations.count() << " (ms)\n";      
+    printf("----------------------------------------------------------\n");
+    cout << "average duration openmp: " << sum_durations.count() << " (ms)\n";   
 
     // add by myself
-    if (verify && verifyResult(mat_inv_PP, mat_inv, mat_inv.size())) 
+    if (verify && verifyResult(mat_inv_PP, mat_inv, mat_inv.size()))
+    {
+        printf("----------------------------------------------------------\n");   
         cout << "Correct answer.\n";
+    }
     //
 
     return 0;

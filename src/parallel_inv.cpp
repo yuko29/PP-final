@@ -20,7 +20,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
 {
     const std::size_t nrows{matG.size()}, ncols{matG[0].size()};
     const std::size_t nSize{nrows};
-    i_real_matrix matLU(nSize);
+    i_real_matrix matLU;
     if (nrows != ncols)
     {
         std::cout << "Error when using inv: matrix is not square.\n";
@@ -30,15 +30,16 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
     std::size_t i{0}, j{0}, k{0};
 
     // ******************** Step 1: row permutation (swap diagonal zeros) ********************
-    /*std::vector<std::size_t> permuteLU(nSize); // Permute vector
+    std::vector<std::size_t> permuteLU; // Permute vector
     for (i = 0; i < nSize; ++i)
     {
         permuteLU.push_back(i); // Push back row index
-    }*/
+    }
+    /*useless
     std::vector<std::size_t> permuteLU(nSize); // Permute vector
     #pragma omp parallel for schedule(static, 1)
     for (i = 0; i < nSize; ++i)
-        permuteLU[i] = i; // Push back row index
+        permuteLU[i] = i; // Push back row index*/
 
     if (usePermute) // Sort rows by pivot element
     {
@@ -57,13 +58,14 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
                 }
             }
         }
-        /*for (i = 0; i < nSize; ++i)
+        for (i = 0; i < nSize; ++i)
         {
             matLU.push_back(matG[permuteLU[i]]); // Make a permuted matrix with new row order
-        }*/
+        }
+        /*useless
         #pragma omp parallel for schedule(static, 1)
         for (i = 0; i < nSize; ++i)
-            matLU[i] = matG[permuteLU[i]]; // Make a permuted matrix with new row order
+            matLU[i] = matG[permuteLU[i]]; // Make a permuted matrix with new row order*/
     }
     else
     {
@@ -77,14 +79,16 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         matLU.clear();
         return matLU;
     }
-    #pragma omp parallel for
+    #pragma omp parallel for // maybe useless
     for (i = 1; i < nSize; ++i)
         matLU[i][0] /= matLU[0][0]; // Initialize first column of L matrix
+        
     #pragma omp parallel for schedule(static, 1)
     for (i = 1; i < nSize; ++i)
     {
         for (j = i; j < nSize; ++j)
         {
+            #pragma omp reduction(-:matLU[:i][:j])
             for (k = 0; k < i; ++k)
             {
                 matLU[i][j] -= matLU[i][k] * matLU[k][j]; // Calculate U matrix
@@ -98,6 +102,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         }*/
         for (k = i + 1; k < nSize; ++k)
         {
+            #pragma omp reduction(-:matLU[:k][:i])
             for (j = 0; j < i; ++j)
             {
                 matLU[k][i] -= matLU[k][j] * matLU[j][i]; // Calculate L matrix
@@ -117,6 +122,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         matLU_inv[i][i] = 1.0;
         for (k = i + 1; k < nSize; ++k)
         {
+            #pragma omp reduction(-:matLU_inv[:k][:i]) // maybe useless
             for (j = i; j <= k - 1; ++j)
             {
                 matLU_inv[k][i] -= matLU[k][j] * matLU_inv[j][i];
@@ -126,6 +132,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         matLU_inv[i][i] = 1.0 / matLU[i][i];
         for (k = i; k > 0; --k)
         {
+            #pragma omp reduction(-:matLU_inv[:k - 1][:i]) // maybe useless
             for (j = k; j <= i; ++j)
             {
                 matLU_inv[k - 1][i] -= matLU[k - 1][j] * matLU_inv[j][i];
@@ -143,6 +150,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         {
             const std::size_t jp{permuteLU[j]}; // Permute column back
             matLU[i][jp] = 0.0;
+            #pragma omp reduction(+:matLU[:i][:jp]) // maybe useless
             for (k = i; k < nSize; ++k)
             {
                 matLU[i][jp] += matLU_inv[i][k] * matLU_inv[k][j];
@@ -157,6 +165,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         {
             const std::size_t jp{permuteLU[j]}; // Permute column back
             matLU[i][jp] = matLU_inv[i][j];
+            #pragma omp reduction(+:matLU[:i][:jp]) // maybe useless
             for (k = j + 1; k < nSize; ++k)
             {
                 matLU[i][jp] += matLU_inv[i][k] * matLU_inv[k][j];
