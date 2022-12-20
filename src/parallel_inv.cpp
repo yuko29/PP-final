@@ -19,14 +19,14 @@ i_real_matrix initRealMatrixPP(const std::size_t nrows, const std::size_t ncols,
 i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true)
 {
     const std::size_t nrows{matG.size()}, ncols{matG[0].size()};
-    i_real_matrix matLU;
+    const std::size_t nSize{nrows};
+    i_real_matrix matLU(nSize);
     if (nrows != ncols)
     {
         std::cout << "Error when using inv: matrix is not square.\n";
         return matLU;
     }
 
-    const std::size_t nSize{nrows};
     std::size_t i{0}, j{0}, k{0};
 
     // ******************** Step 1: row permutation (swap diagonal zeros) ********************
@@ -57,10 +57,13 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
                 }
             }
         }
-        for (i = 0; i < nSize; ++i)
+        /*for (i = 0; i < nSize; ++i)
         {
             matLU.push_back(matG[permuteLU[i]]); // Make a permuted matrix with new row order
-        }
+        }*/
+        #pragma omp parallel for schedule(static, 1)
+        for (i = 0; i < nSize; ++i)
+            matLU[i] = matG[permuteLU[i]]; // Make a permuted matrix with new row order
     }
     else
     {
@@ -76,12 +79,10 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
     }
     #pragma omp parallel for
     for (i = 1; i < nSize; ++i)
-    {
         matLU[i][0] /= matLU[0][0]; // Initialize first column of L matrix
-    }
+    #pragma omp parallel for schedule(static, 1)
     for (i = 1; i < nSize; ++i)
     {
-    	#pragma omp parallel for
         for (j = i; j < nSize; ++j)
         {
             for (k = 0; k < i; ++k)
@@ -89,13 +90,12 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
                 matLU[i][j] -= matLU[i][k] * matLU[k][j]; // Calculate U matrix
             }
         }
-        if (matLU[i][i] == 0.0)
+        /*if (matLU[i][i] == 0.0)
         {
             std::cout << "Warning when using inv: matrix is singular.\n";
             matLU.clear();
             return matLU;
-        }
-        #pragma omp parallel for
+        }*/
         for (k = i + 1; k < nSize; ++k)
         {
             for (j = 0; j < i; ++j)
@@ -110,7 +110,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
     i_real_matrix matLU_inv = initRealMatrixPP(nSize, nSize);
 
     // matL inverse & matU inverse
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static, 1)
     for (i = 0; i < nSize; ++i)
     {
         // L matrix inverse, omit diagonal ones
@@ -136,6 +136,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
 
     // ******************** Step 4: Calculate G^-1 = U^-1 * L^-1 ********************
     // Lower part product
+    #pragma omp parallel for schedule(static, 1)
     for (i = 1; i < nSize; ++i)
     {
         for (j = 0; j < i; ++j)
@@ -149,6 +150,7 @@ i_real_matrix inv_ref_PP(const i_real_matrix &matG, const bool usePermute = true
         }
     }
     // Upper part product
+    #pragma omp parallel for schedule(static, 1)
     for (i = 0; i < nSize; ++i)
     {
         for (j = i; j < nSize; ++j)
