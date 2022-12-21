@@ -17,6 +17,7 @@
 #include "parallel_inv.hpp"
 
 // add by myself
+#include "LU_relatedwork.hpp"
 #include <unistd.h>
 #include <omp.h>
 //
@@ -38,12 +39,30 @@ void usage(const char *progname)
     printf("  -e <INT>     Set the max(end) value of matrix's elements (25 is default).\n");
     printf("  -t <UINT>    Set the number of threads to run. (if availabe, 4 is default.)\n");
     printf("  -r <UINT>    Set the repeat times of running PP to get average time (1 time is default).\n");
+    printf("  -R           Only run relatedwork. (run relatedwork and PP is default)\n");
+    printf("  -P           Only run PP. (run relatedwork and PP is default)\n");
     printf("  -v           Verify PP's answer with serial's.\n");
     printf("  -h           This message.\n");
     exit(0);
 }
 
 bool verifyResult(const i_real_matrix &matPP, const i_real_matrix &matAns, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (abs(matPP[i][j] - matAns[i][j]) > TOLERANCE)
+            {
+                printf("Mismatch : [%d][%d], Expected : %lf, Actual : %lf\n", i, j, matPP[i][j], matAns[i][j]);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool verifyResult_2(double ** matPP, double ** matAns, int n)
 {
     for (int i = 0; i < n; i++)
     {
@@ -67,11 +86,11 @@ int main(int argc, char * argv[]) {
 
     // add by myself
     int repeat = 1, beg_val = -25, end_val = 25, threads = 4;
-    bool verify = false;
+    bool verify = false, runPP = true, runRelated = true;
     unsigned int seed = 0;
 
     int opt;
-    while ((opt = getopt(argc, argv, "n:s:b:e:t:r:vh")) != -1)
+    while ((opt = getopt(argc, argv, "n:s:b:e:t:r:vRPh")) != -1)
     {
         switch (opt)
         {
@@ -96,6 +115,12 @@ int main(int argc, char * argv[]) {
             case 'r':
                 repeat = atoi(optarg);
                 if (repeat <= 0) usage(argv[0]);
+                break;
+            case 'R':
+                runPP = false;
+                break;
+            case 'P':
+                runRelated = false;
                 break;
             case 'v':
                 verify = true;
@@ -125,18 +150,13 @@ int main(int argc, char * argv[]) {
     // Populate reference matrix mat with mat data
     set_mat_to_vec2D(mat_ori, n, mat);
 
-    // Free allocated space
-    free_mat2D(mat_ori, n);
-
     // set time data type
     std::chrono::time_point<std::chrono::high_resolution_clock>  start, stop;
     milliseconds duration;
 
-    // add by myself
     i_real_matrix mat_inv;
     if (verify)
     {
-    //
         // Time serial
         start = high_resolution_clock::now();
 
@@ -150,55 +170,131 @@ int main(int argc, char * argv[]) {
         duration = duration_cast<milliseconds>(stop - start);
 
         // Print duration of serial
+        printf("----------------------------------------------------------------------------------------\n");
         cout << "duration serial: " << duration.count() << " (ms)\n";
-    // add by myself
     }
-    //
-    printf("----------------------------------------------------------\n");
+
+    // set threads
+    printf("----------------------------------------------------------------------------------------\n");
     printf("Max system threads = %d\n", omp_get_max_threads());
     threads = std::min(threads, omp_get_max_threads());
     omp_set_num_threads(threads);
     printf("Running with %d threads\n", threads);
-    printf("----------------------------------------------------------\n");
-    cout << "duration openmp: \n";
 
-    i_real_matrix mat_inv_PP;
-    vector<milliseconds> durations(repeat);
-    for (int i = 0; i < repeat; ++i)
+    if (runRelated)
     {
-        // Time PP
-        start = high_resolution_clock::now();
+        // relatedwork version
+        printf("----------------------------------------------------------------------------------------\n");
+        cout << "duration relatedwork: \n";
+        // init
+        /*double** mat_related;
+        int *permute_related;
+        LUinit(n, mat_ori, &mat_related, &permute_related);*/
 
-        // Compute inverse using PP
-        mat_inv_PP = inv_ref_PP(mat, true);
+        double** mat_related = (double **)malloc(3*n*sizeof(double *));;
+        int *permute_related = (int *)malloc((n+1)*sizeof(int));
+        for (int i = 0; i < 2*n; i++) 
+  		    mat_related[i] = (double *)malloc(n*sizeof(double));
 
-        // Get stop time PP
-        stop = high_resolution_clock::now();
+        vector<milliseconds> durations(repeat);
+        for (int i = 0; i < repeat; ++i)
+        {
+            for(int i=0;i<n;i++)
+                for(int j=0;j<n;j++)
+                    mat_related[i][j] = mat_ori[i][j];
 
-        // Get duration PP
-        durations[i] = duration_cast<milliseconds>(stop - start);
+            //if (verifyResult_2(mat_ori, mat_related, n)) 
+            //    cout << "related init sucess.\n";
+            
+            // Time related
+            start = high_resolution_clock::now();
 
-        // Print duration of PP
-        cout << "number" << i << ": " << durations[i].count() << " (ms)\n";        
+            // decompose
+            LUPDecompose(mat_related, n, permute_related);
+
+            // inverse (answers are in mat_related)
+            LUPInvert(mat_related, permute_related, n);
+            
+            // Get stop time related
+            stop = high_resolution_clock::now();
+
+            // Get duration related
+            //duration = duration_cast<milliseconds>(stop - start);
+            durations[i] = duration_cast<milliseconds>(stop - start);
+
+            // Print duration of related
+            cout << "number" << i << ": " << durations[i].count() << " (ms)\n";  
+        }
+
+        // comput average, but the biggst and smallest 10% time will not be computed
+        sort(durations.begin(), durations.end());
+        milliseconds sum_durations = duration_cast<milliseconds>(start - start); // set to zero
+        int starti = (float)repeat * 0.1, endi = (float)repeat * 0.9 + 1;
+        for (int i = starti; i < endi; ++i)
+            sum_durations += durations[i];
+        sum_durations /= endi - starti;
+        printf("------------------------------------------------\n");
+        cout << "average duration related: " << sum_durations.count() << " (ms)\n";
+
+        if (verify)
+        {
+            // ans is in mat_related, but it is double**
+            i_real_matrix mat_related_inv;
+            set_mat_to_vec2D(mat_related + n * 1, n, mat_related_inv);
+            if (verifyResult(mat_related_inv, mat_inv, n))
+            {
+                printf("------------------------------------------------\n");   
+                cout << "Relatedwork's answer is Correct.\n";
+            }
+        }
     }
 
-    // comput average, but the biggst and smallest 10% time will not be computed
-    sort(durations.begin(), durations.end());
-    milliseconds sum_durations = duration_cast<milliseconds>(start - start); // set to zero
-    int starti = (float)repeat * 0.1, endi = (float)repeat * 0.9 + 1;
-    for (int i = starti; i < endi; ++i)
-        sum_durations += durations[i];
-    sum_durations /= endi - starti;
-    printf("----------------------------------------------------------\n");
-    cout << "average duration openmp: " << sum_durations.count() << " (ms)\n";   
-
-    // add by myself
-    if (verify && verifyResult(mat_inv_PP, mat_inv, mat_inv.size()))
+    if (runPP)
     {
-        printf("----------------------------------------------------------\n");   
-        cout << "Correct answer.\n";
+        // PP openmp
+        printf("----------------------------------------------------------------------------------------\n");
+        cout << "duration openmp: \n";
+
+        i_real_matrix mat_inv_PP;
+        vector<milliseconds> durations(repeat);
+        for (int i = 0; i < repeat; ++i)
+        {
+            // Time PP
+            start = high_resolution_clock::now();
+
+            // Compute inverse using PP
+            mat_inv_PP = inv_ref_PP(mat, true);
+
+            // Get stop time PP
+            stop = high_resolution_clock::now();
+
+            // Get duration PP
+            durations[i] = duration_cast<milliseconds>(stop - start);
+
+            // Print duration of PP
+            cout << "number" << i << ": " << durations[i].count() << " (ms)\n";        
+        }
+
+        // comput average, but the biggst and smallest 10% time will not be computed
+        sort(durations.begin(), durations.end());
+        milliseconds sum_durations = duration_cast<milliseconds>(start - start); // set to zero
+        int starti = (float)repeat * 0.1, endi = (float)repeat * 0.9 + 1;
+        for (int i = starti; i < endi; ++i)
+            sum_durations += durations[i];
+        sum_durations /= endi - starti;
+        printf("------------------------------------------------\n");
+        cout << "average duration openmp: " << sum_durations.count() << " (ms)\n";   
+
+        if (verify && verifyResult(mat_inv_PP, mat_inv, mat_inv.size()))
+        {
+            printf("------------------------------------------------\n");   
+            cout << "PP's answer is Correct.\n";
+        }
     }
-    //
+      
+
+    // Free allocated space
+    free_mat2D(mat_ori, n);
 
     return 0;
 }

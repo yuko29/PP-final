@@ -9,7 +9,7 @@ all: $(EXE)
 dirs:
 	/bin/mkdir -p $(OBJDIR)/
 
-OBJS=$(OBJDIR)/main.o $(OBJDIR)/parallel_inv.o $(OBJDIR)/lib_mat.o $(OBJDIR)/lib_mem.o $(OBJDIR)/lib_sort.o $(OBJDIR)/lib_testing_ref.o $(OBJDIR)/lib_testing.o
+OBJS=$(OBJDIR)/main.o $(OBJDIR)/parallel_inv.o $(OBJDIR)/lib_mat.o $(OBJDIR)/lib_mem.o $(OBJDIR)/lib_sort.o $(OBJDIR)/lib_testing_ref.o $(OBJDIR)/lib_testing.o $(OBJDIR)/LU_relatedwork.o
 
 $(EXE): dirs $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
